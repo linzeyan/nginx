@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+# 映像檔 = debian:12-slim + 從 GitHub Releases 下載的 .deb,不在此編譯。
+# VERSION/PKG_RELEASE 由 Makefile 從 config/nginx/build.env 帶入。
+# rootless 變體:整個行程以 nginx 使用者執行,監聽 8080;
+# PID/暫存檔移到 /tmp,日誌直接寫 stdout/stderr(見 nginx-rootless.conf)。
+
+ARG REPO=linzeyan/nginx
+
+# 獨立的下載階段:.deb 只存在於這一層,不會留在最終映像檔裡。
+FROM debian:12-slim AS fetch
+ARG REPO
+ARG VERSION
+ARG PKG_RELEASE
+ARG TARGETARCH
+ADD https://github.com/${REPO}/releases/download/nginx-${VERSION}-${PKG_RELEASE}/nginx_${VERSION}-${PKG_RELEASE}_${TARGETARCH}.deb /tmp/nginx.deb
+
+FROM debian:12-slim
+RUN --mount=from=fetch,source=/tmp/nginx.deb,target=/tmp/nginx.deb \
+    apt-get update \
+    && apt-get install -y --no-install-recommends /tmp/nginx.deb \
+    && rm -rf /var/lib/apt/lists/*
+COPY nginx-rootless.conf /etc/nginx/nginx.conf
+# 非特權模式:監聽埠移到 1024 以上;conf.d 保持可寫,
+# 方便衍生映像在啟動時動態產生 vhost 設定。
+RUN sed -i 's/listen  *80;/listen 8080;/' /etc/nginx/conf.d/default.conf \
+    && chown -R nginx:nginx /etc/nginx/conf.d /var/cache/nginx
+EXPOSE 8080
+STOPSIGNAL SIGQUIT
+USER nginx
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,55 @@
+name: build-nginx
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - config/nginx/**
+      - packaging/nginx/**
+      - nfpm/nginx.yaml
+      - scripts/**
+      - Makefile
+      - .github/workflows/build-nginx.yml
+
+concurrency:
+  group: build-nginx
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      # 在 almalinux:8 容器內編譯、以 nfpm 打包,最後在乾淨的發行版容器
+      # 內做安裝煙霧測試 —— 與本地 make 完全同一條路徑
+      - run: make nginx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nginx-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      # 同一 VERSION 重發需先 bump PKG_RELEASE,tag 已存在會直接失敗
+      - name: create GitHub release
+        run: make release-nginx
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,64 @@
+# rpm/deb 共用的套件 metadata。VERSION、PKG_RELEASE、PKG_ARCH 由
+# scripts/package.sh 從 config/openresty/build.env 以環境變數注入。
+name: openresty
+arch: ${PKG_ARCH}
+platform: linux
+version: ${VERSION}
+release: ${PKG_RELEASE}
+section: httpd
+priority: optional
+maintainer: Ricky <ckshkersten@gmail.com>
+description: |
+  OpenResty - 以 Lua 擴充 nginx 的 Web 平台。
+  自建版本:靜態連結 OpenSSL/PCRE2/zlib/libmaxminddb,額外模組列於
+  release notes。
+vendor: ricky
+homepage: https://openresty.org
+license: BSD-2-Clause
+depends:
+  # resty CLI 是 perl 腳本
+  - perl
+# auth_basic 會呼叫 crypt_r(),binary 因此連結 libcrypt.so.1。
+# 這裡宣告 soname 而非套件名,因為提供者跨版本不同:EL8 是 libxcrypt,
+# EL9 已拆到預設不安裝的 libxcrypt-compat。deb 端由 essential 套件
+# 提供,不必宣告。overrides 會整份取代上層 depends,所以 perl 要再列一次。
+# xslt 與 image_filter 是 dynamic module,只有實際 load_module 的人才
+# 需要 libxslt/libgd,故不列為套件依賴。
+overrides:
+  rpm:
+    depends:
+      - perl
+      - "libcrypt.so.1()(64bit)"
+contents:
+  - src: build/openresty/stage/usr/local/openresty
+    dst: /usr/local/openresty
+    type: tree
+  # nginx.conf 與 conf.d 不放在上面的 tree 裡,才能標成 config|noreplace,
+  # 升級時不會蓋掉使用者改過的設定。
+  - src: packaging/openresty/nginx.conf
+    dst: /usr/local/openresty/nginx/conf/nginx.conf
+    type: config|noreplace
+  - src: packaging/openresty/conf.d/default.conf
+    dst: /usr/local/openresty/nginx/conf/conf.d/default.conf
+    type: config|noreplace
+  - src: /usr/local/openresty/bin/openresty
+    dst: /usr/bin/openresty
+    type: symlink
+  - src: /usr/local/openresty/bin/resty
+    dst: /usr/bin/resty
+    type: symlink
+  - src: packaging/openresty/openresty.service
+    dst: /usr/lib/systemd/system/openresty.service
+  - src: packaging/openresty/logrotate
+    dst: /etc/logrotate.d/openresty
+    type: config|noreplace
+  # nginx.conf 會 include 這兩個目錄:main.d 放 load_module 這類
+  # 必須在 main context 生效的設定,sites-enabled 放 vhost。
+  - dst: /usr/local/openresty/nginx/conf/main.d
+    type: dir
+  - dst: /usr/local/openresty/nginx/conf/sites-enabled
+    type: dir
+scripts:
+  postinstall: packaging/openresty/postinstall.sh
+  preremove: packaging/openresty/preremove.sh
+  postremove: packaging/openresty/postremove.sh

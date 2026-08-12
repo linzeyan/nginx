@@ -1,0 +1,60 @@
+# rpm/deb 共用的套件 metadata。VERSION、PKG_RELEASE、PKG_ARCH 由
+# scripts/package.sh 從 config/nginx/build.env 以環境變數注入。
+name: nginx
+arch: ${PKG_ARCH}
+platform: linux
+version: ${VERSION}
+release: ${PKG_RELEASE}
+section: httpd
+priority: optional
+maintainer: Ricky <ckshkersten@gmail.com>
+description: |
+  高效能 Web 伺服器與反向代理。
+  自建版本:靜態連結 OpenSSL/PCRE2/zlib/libmaxminddb,內含的第三方模組
+  列於 release notes。
+vendor: ricky
+homepage: https://nginx.org
+license: BSD-2-Clause
+# auth_basic 會呼叫 crypt_r(),binary 因此連結 libcrypt.so.1。
+# 這裡宣告 soname 而非套件名,因為提供者跨版本不同:EL8 是 libxcrypt,
+# EL9 已拆到預設不安裝的 libxcrypt-compat。deb 端由 essential 套件
+# 提供,不必宣告。
+# xslt 與 image_filter 是 dynamic module,只有實際 load_module 的人才
+# 需要 libxslt/libgd,故不列為套件依賴。
+overrides:
+  rpm:
+    depends:
+      - "libcrypt.so.1()(64bit)"
+contents:
+  - src: build/nginx/stage/usr/sbin/nginx
+    dst: /usr/sbin/nginx
+  - src: build/nginx/stage/etc/nginx/*
+    dst: /etc/nginx/
+    type: config|noreplace
+  - src: packaging/nginx/conf.d/default.conf
+    dst: /etc/nginx/conf.d/default.conf
+    type: config|noreplace
+  - src: build/nginx/stage/usr/lib/nginx/modules/*.so
+    dst: /usr/lib/nginx/modules/
+  - src: build/nginx/stage/usr/share/nginx/html
+    dst: /usr/share/nginx/html
+    type: tree
+  - src: packaging/nginx/nginx.service
+    dst: /usr/lib/systemd/system/nginx.service
+  - src: packaging/nginx/logrotate
+    dst: /etc/logrotate.d/nginx
+    type: config|noreplace
+  # nginx.conf 會 include 這兩個目錄:main.d 放 load_module 這類
+  # 必須在 main context 生效的設定,sites-enabled 放 vhost。
+  - dst: /etc/nginx/main.d
+    type: dir
+  - dst: /etc/nginx/sites-enabled
+    type: dir
+  - dst: /var/log/nginx
+    type: dir
+  - dst: /var/cache/nginx
+    type: dir
+scripts:
+  postinstall: packaging/nginx/postinstall.sh
+  preremove: packaging/nginx/preremove.sh
+  postremove: packaging/nginx/postremove.sh

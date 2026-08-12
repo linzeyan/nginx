@@ -1,0 +1,34 @@
+name: check-versions
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: make bump-versions
+      # 用 GITHUB_TOKEN 推的 commit 不會觸發 push workflow(GitHub 的
+      # 遞迴保護),所以 bump 後需要顯式 dispatch 建置 workflow。
+      - name: commit bump and dispatch builds
+        if: steps.check.outputs.changed != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGED: ${{ steps.check.outputs.changed }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore: bump versions ($SUMMARY)"
+          git push
+          for product in $CHANGED; do
+            gh workflow run "build-$product.yml" --ref main
+          done
