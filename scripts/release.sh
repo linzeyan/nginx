@@ -20,7 +20,9 @@ files=( "$PRODUCT"[_-]* )
 sha256sum "${files[@]}" > SHA256SUMS
 
 notes="$(mktemp)"
-"$ROOT/scripts/release-notes.sh" "$PRODUCT" > "$notes"
+# 走 bash 而非直接執行:repo 內的腳本都不帶 executable bit,
+# 呼叫方式統一(Makefile 與 clone_modules 的 prep hook 也是這樣)。
+bash "$ROOT/scripts/release-notes.sh" "$PRODUCT" > "$notes"
 gh release create "$TAG" --title "$TAG" --notes-file "$notes" \
     "${files[@]}" SHA256SUMS
 
