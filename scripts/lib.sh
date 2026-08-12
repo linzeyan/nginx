@@ -103,8 +103,10 @@ read_args() {
 # 逐一取得 modules.conf($1)列出的模組到 $2,每行輸出一個可直接餵給
 # --add-module 的目錄。行格式:<name> <git-url> <git-ref> [subdir]。
 # 用 fetch 而非 clone --branch,因為後者不接受 commit SHA。
+# 若 scripts/module-prep/<name>.sh 存在,會在模組目錄內執行,供需要
+# 事前編譯依賴的模組使用(見該目錄)。
 clone_modules() {
-    local conf=$1 dest=$2 name url ref subdir target
+    local conf=$1 dest=$2 name url ref subdir target prep
     mkdir -p "$dest"
     while read -r name url ref subdir || [[ -n "$name" ]]; do
         [[ -z "$name" || "$name" == \#* ]] && continue
@@ -116,6 +118,13 @@ clone_modules() {
         git -C "$target" fetch -q --depth 1 origin "$ref" >&2
         git -C "$target" checkout -q FETCH_HEAD >&2
         git -C "$target" submodule update -q --init --depth 1 --recursive >&2
+
+        prep="$ROOT/scripts/module-prep/$name.sh"
+        if [[ -f "$prep" ]]; then
+            echo "preparing module $name" >&2
+            ( cd "$target" && bash "$prep" ) >&2
+        fi
+
         echo "$target${subdir:+/$subdir}"
     done < "$conf"
 }

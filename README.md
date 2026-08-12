@@ -55,6 +55,12 @@ apt-get install -y libxslt1.1   # 或 dnf install libxslt
 `<git-ref>` 可以是 tag、branch 或 commit SHA;`[subdir]` 用在模組的
 `config` 檔不在 repo 根目錄時(例如 njs 要指到 `nginx/`)。
 
+有些模組在 `--add-module` 之前需要先編好自己的依賴。這種情況在
+`scripts/module-prep/<name>.sh` 放一支腳本,取得原始碼後會在該模組目錄
+內自動執行。目前只有 `brotli` 需要:ngx_brotli 直接以
+`-L deps/brotli/out -lbrotlienc -lbrotlicommon` 連結,那些靜態庫得先用
+CMake 編出來。
+
 ## 版本與套件版次:VERSION 與 PKG_RELEASE
 
 `config/<product>/build.env` 裡有兩個版本欄位,發佈的 tag 與檔名都是
