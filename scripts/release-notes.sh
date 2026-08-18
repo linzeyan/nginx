@@ -27,10 +27,14 @@ if (( ! has_modules )); then
     echo "(無)"
 fi
 
+# 先取值再展開:命令替換若直接寫在 heredoc 裡,read_args 失敗只會讓那一段
+# 變空白而 cat 依然成功 —— release notes 少一整段卻沒人發現。
+args="$(read_args "$ROOT/config/$PRODUCT/configure-args.conf")"
+
 cat <<EOF
 
 ### configure 參數
 \`\`\`
-$(read_args "$ROOT/config/$PRODUCT/configure-args.conf")
+${args}
 \`\`\`
 EOF

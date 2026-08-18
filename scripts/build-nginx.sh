@@ -28,10 +28,15 @@ build_libmaxminddb "$SRC" "$LIBMAXMINDDB_VERSION"
 # 產生執行期外部依賴;這裡明確關掉,只保留純靜態的核心功能。
 export NJS_LIBXSLT=NO NJS_ZLIB=NO NJS_QUICKJS=NO
 
+# 刻意不用 `while read < <(cmd)`:process substitution 跑在獨立 subshell,
+# 它掛掉時主 shell 只會讀到 EOF,於是建置會在少了參數或模組的情況下靜靜
+# 跑完、產出不完整的 binary。先以獨立指令寫成清單(失敗由 set -e 與
+# lib.sh 的 ERR trap 攔下)再讀,同時留下這次實際用到的內容可事後查。
+read_args "$ROOT/config/$PRODUCT/configure-args.conf" > "$BUILD/configure-args.list"
 configure_args=()
 while IFS= read -r arg; do
     configure_args+=("$arg")
-done < <(read_args "$ROOT/config/$PRODUCT/configure-args.conf")
+done < "$BUILD/configure-args.list"
 
 configure_args+=(
     "--with-openssl=$SRC/openssl-${OPENSSL_VERSION}"
@@ -39,9 +44,10 @@ configure_args+=(
     "--with-zlib=$SRC/zlib-${ZLIB_VERSION}"
 )
 
+clone_modules "$ROOT/config/$PRODUCT/modules.conf" "$SRC/modules" > "$BUILD/modules.list"
 while IFS= read -r mod; do
     configure_args+=("--add-module=$mod")
-done < <(clone_modules "$ROOT/config/$PRODUCT/modules.conf" "$SRC/modules")
+done < "$BUILD/modules.list"
 
 cd "$SRC/nginx-${VERSION}"
 ./configure "${configure_args[@]}"
