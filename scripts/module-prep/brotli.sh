@@ -2,8 +2,10 @@
 # ngx_brotli 的 config 不會自己編 brotli:它直接以
 # -L deps/brotli/out -lbrotlienc -lbrotlicommon 連結,期待該目錄下已有
 # 編好的靜態庫。少了這步,nginx 連結階段會出現 cannot find -lbrotlienc。
-# 執行時的工作目錄是模組 clone 出來的根目錄。
-set -euo pipefail
+# 執行時的工作目錄是模組 clone 出來的根目錄,所以 lib.sh 以 $0 定位
+# (它跑在獨立的 bash process,不繼承呼叫端的環境)。source 它是為了
+# 沿用同一組錯誤回報,失敗時才看得到是哪一行掛掉。
+source "$(cd "$(dirname "$0")/.." && pwd)/lib.sh"
 
 # 不加 -march=native:產物要能在所有同架構的機器上執行,
 # 不能綁定 CI runner 的 CPU 特性。

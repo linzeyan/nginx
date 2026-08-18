@@ -2,19 +2,53 @@
 # build/package/release 腳本共用的輔助函式,任何錯誤都直接失敗。
 # 刻意不依賴外部工具(純 bash + coreutils),host 與 almalinux:8
 # 建置容器內都能執行。
-set -euo pipefail
+# -E:讓下面的 ERR trap 也在函式、subshell 與 $(...) 內生效,
+# 否則大多數失敗(它們都發生在函式裡)不會被回報。
+set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# GitHub Actions annotation:讓失敗直接顯示在 job 摘要,不必展開 log。
+# 非 CI 環境是 no-op。訊息裡的 % 與換行必須照 Actions 的規則跳脫。
+ci_error() { # <file> <line> <message>
+    [[ -n "${GITHUB_ACTIONS:-}" ]] || return 0
+    local msg=${3//'%'/%25}
+    msg=${msg//$'\r'/%0D}
+    msg=${msg//$'\n'/%0A}
+    printf '::error file=%s,line=%s::%s\n' "${1#"$ROOT"/}" "$2" "$msg" >&2
+}
+
+# 沒有這個 trap 時,CI log 只會留下 make 轉述的 exit code
+# (例:`make: *** [Makefile:46] Error 22`),看不出是哪支腳本的哪一行、
+# 哪個指令掛掉 —— 尤其 set -e 會在 die() 之前就中止,自訂訊息根本印不到。
+# 這裡補上失敗指令與呼叫堆疊,失敗一次就足以定位,不用重跑。
+on_err() { # <status> <failed-command>
+    local status=$1 cmd=$2 i
+    echo "error: command failed (exit $status): $cmd" >&2
+    for (( i = 1; i < ${#FUNCNAME[@]}; i++ )); do
+        echo "  at ${FUNCNAME[i]} (${BASH_SOURCE[i]##*/}:${BASH_LINENO[i-1]})" >&2
+    done
+    ci_error "${BASH_SOURCE[1]}" "${BASH_LINENO[0]}" "exit $status: $cmd"
+    # set -e 本來就會在這之後中止,提早 exit 只是不讓同一個錯誤沿著呼叫鏈
+    # 逐層再觸發一次 trap(每層都會重印一份堆疊與 annotation)。
+    exit "$status"
+}
+trap 'on_err $? "$BASH_COMMAND"' ERR
+
 die() {
     echo "error: $*" >&2
+    ci_error "${BASH_SOURCE[1]:-$0}" "${BASH_LINENO[0]:-0}" "$*"
     exit 1
 }
 
 # 載入 config/<product>/build.env(VERSION、PKG_RELEASE、依賴版本)。
+# 先自己檢查檔案:source 是 POSIX special builtin,開檔失敗會讓 shell
+# 立刻結束而跳過 ERR trap,失敗就只剩一行 bash 內建訊息、沒有 annotation。
 load_env() {
+    local file="$ROOT/config/$1/build.env"
+    [[ -f "$file" ]] || die "unknown product '$1': $file not found"
     # shellcheck source=/dev/null
-    source "$ROOT/config/$1/build.env"
+    source "$file"
 }
 
 # 就地改寫 config/<product>/build.env 內某個變數的值,
