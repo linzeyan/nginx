@@ -15,6 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: make bump-versions
       # 用 GITHUB_TOKEN 推的 commit 不會觸發 push workflow(GitHub 的
       # 遞迴保護),所以 bump 後需要顯式 dispatch 建置 workflow。

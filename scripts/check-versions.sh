@@ -17,8 +17,14 @@ latest_nginx() {
         | tail -1
 }
 
+# GitHub API 對未認證請求按來源 IP 計 rate limit(60/hr),Actions runner 的
+# 出口 IP 是共用的,配額常常在別人手上就被用完 -> 403。有 token 就帶上,
+# 額度改為按 repo 計(1000/hr)。本機沒 token 時仍可跑,只是吃共用配額。
 latest_openresty() {
-    curl -fsSL --retry 3 https://api.github.com/repos/openresty/openresty/releases/latest \
+    local auth=(-H "Accept: application/vnd.github+json")
+    [[ -n "${GITHUB_TOKEN:-}" ]] && auth+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    curl -fsSL --retry 3 "${auth[@]}" \
+        https://api.github.com/repos/openresty/openresty/releases/latest \
         | tr ',' '\n' \
         | sed -n 's/.*"tag_name": *"v\([0-9.]*\)".*/\1/p' \
         | head -1
