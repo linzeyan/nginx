@@ -1,5 +1,10 @@
-# rpm/deb 共用的套件 metadata。VERSION、PKG_RELEASE、PKG_ARCH 由
-# scripts/package.sh 從 config/nginx/build.env 以環境變數注入。
+# nginx 家族(stable 與 mainline 兩條產品線)共用的 rpm/deb 套件
+# metadata。VERSION、PKG_RELEASE、PKG_ARCH 由 scripts/package.sh
+# 從 config/<product>/build.env 以環境變數注入。
+# 兩條線的套件名都是 nginx(與 nginx.org 官方 repo 一致),靠 version
+# 區分,使用者可以直接在兩條線之間升級。
+# 下面的 /stage 是 scripts/package.sh 掛進容器的 build/<product>/stage,
+# 也就是這次要打包的那條產品線;packaging/ 的路徑則相對於 repo 根目錄。
 name: nginx
 arch: ${PKG_ARCH}
 platform: linux
@@ -26,17 +31,17 @@ overrides:
     depends:
       - "libcrypt.so.1()(64bit)"
 contents:
-  - src: build/nginx/stage/usr/sbin/nginx
+  - src: /stage/usr/sbin/nginx
     dst: /usr/sbin/nginx
-  - src: build/nginx/stage/etc/nginx/*
+  - src: /stage/etc/nginx/*
     dst: /etc/nginx/
     type: config|noreplace
   - src: packaging/nginx/conf.d/default.conf
     dst: /etc/nginx/conf.d/default.conf
     type: config|noreplace
-  - src: build/nginx/stage/usr/lib/nginx/modules/*.so
+  - src: /stage/usr/lib/nginx/modules/*.so
     dst: /usr/lib/nginx/modules/
-  - src: build/nginx/stage/usr/share/nginx/html
+  - src: /stage/usr/share/nginx/html
     dst: /usr/share/nginx/html
     type: tree
   - src: packaging/nginx/nginx.service

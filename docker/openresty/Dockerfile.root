@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # 映像檔 = debian:12-slim + 從 GitHub Releases 下載的 .deb,不在此編譯。
-# VERSION/PKG_RELEASE 由 Makefile 從 config/openresty/build.env 帶入。
+# PRODUCT/VERSION/PKG_RELEASE 由 Makefile 從 config/openresty/build.env 帶入。
 # root 變體:master 以 root 執行,監聽 80。
 
 ARG REPO=linzeyan/nginx
@@ -8,10 +8,11 @@ ARG REPO=linzeyan/nginx
 # 獨立的下載階段:.deb 只存在於這一層,不會留在最終映像檔裡。
 FROM debian:12-slim AS fetch
 ARG REPO
+ARG PRODUCT
 ARG VERSION
 ARG PKG_RELEASE
 ARG TARGETARCH
-ADD https://github.com/${REPO}/releases/download/openresty-${VERSION}-${PKG_RELEASE}/openresty_${VERSION}-${PKG_RELEASE}_${TARGETARCH}.deb /tmp/openresty.deb
+ADD https://github.com/${REPO}/releases/download/${PRODUCT}-${VERSION}-${PKG_RELEASE}/openresty_${VERSION}-${PKG_RELEASE}_${TARGETARCH}.deb /tmp/openresty.deb
 
 FROM debian:12-slim
 RUN --mount=from=fetch,source=/tmp/openresty.deb,target=/tmp/openresty.deb \

@@ -4,17 +4,22 @@
 
 BUILD_IMAGE ?= almalinux:8
 
-.PHONY: all nginx openresty check-versions bump-versions clean
+.PHONY: all nginx-stable nginx-mainline openresty check-versions bump-versions clean
 
-all: nginx openresty
+all: nginx-stable nginx-mainline openresty
 
-# 每個產品的完整本地流程:編譯 -> deb/rpm/tar.gz -> 乾淨發行版容器內
+# 每條產品線的完整本地流程:編譯 -> deb/rpm/tar.gz -> 乾淨發行版容器內
 # 安裝煙霧測試。
-nginx: build-nginx package-nginx test-nginx
+nginx-stable: build-nginx-stable package-nginx-stable test-nginx-stable
+nginx-mainline: build-nginx-mainline package-nginx-mainline test-nginx-mainline
 openresty: build-openresty package-openresty test-openresty
 
+# build script 掛在 FAMILY 底下(nginx 的 stable 與 mainline 共用同一支),
+# 所以要先讀 build.env 才知道跑哪支;產品線名稱以參數傳進去。
 build-%:
-	docker run --rm -v $(CURDIR):/work -w /work $(BUILD_IMAGE) bash scripts/build-$*.sh
+	. config/$*/build.env; \
+	docker run --rm -v $(CURDIR):/work -w /work $(BUILD_IMAGE) \
+		bash scripts/build-$$FAMILY.sh $*
 
 package-%:
 	bash scripts/package.sh $*
@@ -27,10 +32,12 @@ test-%:
 # 若要用本地尚未發佈的套件,請改跑 make test-$* 驗證。
 image-%:
 	. config/$*/build.env; \
-	docker build -f docker/$*/Dockerfile.root docker/$* \
+	docker build -f docker/$$FAMILY/Dockerfile.root docker/$$FAMILY \
+		--build-arg PRODUCT=$* \
 		--build-arg VERSION=$$VERSION --build-arg PKG_RELEASE=$$PKG_RELEASE \
 		-t $*:$$VERSION-$$PKG_RELEASE -t $*:latest; \
-	docker build -f docker/$*/Dockerfile.rootless docker/$* \
+	docker build -f docker/$$FAMILY/Dockerfile.rootless docker/$$FAMILY \
+		--build-arg PRODUCT=$* \
 		--build-arg VERSION=$$VERSION --build-arg PKG_RELEASE=$$PKG_RELEASE \
 		-t $*:$$VERSION-$$PKG_RELEASE-rootless -t $*:rootless
 
@@ -46,7 +53,7 @@ bump-versions:
 	bash scripts/check-versions.sh --update
 
 # 上游版本沒變、但建置內容變了(模組/configure 參數/依賴版本)時,
-# 用這個把套件版次 +1,否則 release tag 會撞名而發不出去。
+# 用這個把套件版次推到當天日期,否則 release tag 會撞名而發不出去。
 bump-release-%:
 	bash scripts/bump-release.sh $*
 

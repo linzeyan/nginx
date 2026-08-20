@@ -3,7 +3,7 @@
 # HTTP 回應正常。這是每次 release 前的守門測試。
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-PRODUCT=${1:?usage: smoke-test.sh <nginx|openresty>}
+PRODUCT=${1:?usage: smoke-test.sh <product>}
 load_env "$PRODUCT"
 PKG_ARCH="$(pkg_arch)"
 RPM_ARCH="$(rpm_arch)"
@@ -11,12 +11,14 @@ RPM_ARCH="$(rpm_arch)"
 DEB_IMAGES=(ubuntu:24.04 debian:12)
 RPM_IMAGES=(rockylinux:9 almalinux:8)
 
-DEB="${PRODUCT}_${VERSION}-${PKG_RELEASE}_${PKG_ARCH}.deb"
-RPM="${PRODUCT}-${VERSION}-${PKG_RELEASE}.${RPM_ARCH}.rpm"
+# 檔名與待驗證的指令都跟著套件名(FAMILY)走,不是產品線:
+# nginx-stable 與 nginx-mainline 出的都是套件 nginx。
+DEB="${FAMILY}_${VERSION}-${PKG_RELEASE}_${PKG_ARCH}.deb"
+RPM="${FAMILY}-${VERSION}-${PKG_RELEASE}.${RPM_ARCH}.rpm"
 [[ -f "$ROOT/dist/$DEB" ]] || die "missing dist/$DEB — run 'make package-$PRODUCT' first"
 [[ -f "$ROOT/dist/$RPM" ]] || die "missing dist/$RPM — run 'make package-$PRODUCT' first"
 
-case "$PRODUCT" in
+case "$FAMILY" in
     nginx)
         CHECK='nginx -V && nginx -t && nginx && sleep 1 \
             && curl -fsS http://127.0.0.1/ >/dev/null && echo SMOKE_OK'

@@ -5,7 +5,7 @@
 # 但在任何有工具鏈的 Linux host 上也能跑。
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-PRODUCT=openresty
+PRODUCT=${1:?usage: build-openresty.sh <openresty>}
 load_env "$PRODUCT"
 
 BUILD="$ROOT/build/$PRODUCT"

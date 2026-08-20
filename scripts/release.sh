@@ -4,7 +4,7 @@
 # 需要已認證的 `gh`。
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-PRODUCT=${1:?usage: release.sh <nginx|openresty>}
+PRODUCT=${1:?usage: release.sh <product>}
 load_env "$PRODUCT"
 TAG="$PRODUCT-$VERSION-$PKG_RELEASE"
 
@@ -13,8 +13,11 @@ if gh release view "$TAG" >/dev/null 2>&1; then
 fi
 
 cd "$ROOT/dist"
-# deb 檔名在產品名後接 '_',rpm 與 tar.gz 接 '-'。
-files=( "$PRODUCT"[_-]* )
+# 檔名帶的是套件名(FAMILY)而非產品線,再以 VERSION 限定 —— 本地跑過
+# make all 之後 dist/ 會同時有 stable 與 mainline 的 nginx 套件,少了
+# VERSION 這段就會把兩條線的產物一起發進同一個 release。
+# deb 檔名在套件名後接 '_',rpm 與 tar.gz 接 '-'。
+files=( "$FAMILY"[_-]"$VERSION"-* )
 [[ -f "${files[0]}" ]] || die "no artifacts for $PRODUCT in dist/"
 
 sha256sum "${files[@]}" > SHA256SUMS

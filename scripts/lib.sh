@@ -41,15 +41,22 @@ die() {
     exit 1
 }
 
-# 載入 config/<product>/build.env(VERSION、PKG_RELEASE、依賴版本)。
+# 載入 config/<product>/build.env(VERSION、PKG_RELEASE、FAMILY、依賴版本)。
 # 先自己檢查檔案:source 是 POSIX special builtin,開檔失敗會讓 shell
 # 立刻結束而跳過 ERR trap,失敗就只剩一行 bash 內建訊息、沒有 annotation。
+# FAMILY 缺了會讓後續去找 nfpm/.yaml 這種空路徑,錯得很晚又難懂,先擋掉。
 load_env() {
     local file="$ROOT/config/$1/build.env"
     [[ -f "$file" ]] || die "unknown product '$1': $file not found"
     # shellcheck source=/dev/null
     source "$file"
+    [[ -n "${FAMILY:-}" ]] || die "$file: FAMILY not set"
 }
+
+# 套件版次(PKG_RELEASE)用的日期,UTC 以免隨執行機器的時區飄。
+# 值寫進 build.env 而不是打包時現算:amd64 與 arm64 在兩台 runner 上
+# 並行建置,現算會在跨午夜時給出不同日期,release 步驟就湊不齊同一組檔案。
+today() { date -u +%Y%m%d; }
 
 # 就地改寫 config/<product>/build.env 內某個變數的值,
 # 保留檔案其餘內容(註解、順序)不動。

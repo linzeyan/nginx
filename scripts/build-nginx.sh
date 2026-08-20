@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # 編譯 nginx:靜態連結 OpenSSL/PCRE2/zlib/libmaxminddb,並加入
-# config/nginx/modules.conf 列出的第三方模組,將安裝樹 stage 出來供打包。
+# config/<product>/modules.conf 列出的第三方模組,將安裝樹 stage 出來供打包。
+# stable 與 mainline 兩條線的建置步驟完全相同,差別只在 build.env 裡的
+# VERSION 與各自的模組/參數設定,因此由呼叫方指定要建哪一條。
 # 預期在 almalinux:8 容器內執行(glibc 2.28 基線,見 Makefile),
 # 但在任何有工具鏈的 Linux host 上也能跑。
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-PRODUCT=nginx
+PRODUCT=${1:?usage: build-nginx.sh <nginx-stable|nginx-mainline>}
 load_env "$PRODUCT"
 
 BUILD="$ROOT/build/$PRODUCT"
@@ -56,8 +58,8 @@ make install DESTDIR="$STAGE"
 
 # 改用我們的設定檔佈局,不隨包出貨上游的範例檔。
 rm -f "$STAGE/etc/nginx/"*.default
-install -m 0644 "$ROOT/packaging/nginx/nginx.conf" "$STAGE/etc/nginx/nginx.conf"
+install -m 0644 "$ROOT/packaging/$FAMILY/nginx.conf" "$STAGE/etc/nginx/nginx.conf"
 mkdir -p "$STAGE/usr/share/nginx"
 mv "$STAGE/etc/nginx/html" "$STAGE/usr/share/nginx/html"
 
-echo "nginx $VERSION staged at $STAGE"
+echo "$PRODUCT $VERSION staged at $STAGE"

@@ -1,5 +1,7 @@
 # rpm/deb 共用的套件 metadata。VERSION、PKG_RELEASE、PKG_ARCH 由
 # scripts/package.sh 從 config/openresty/build.env 以環境變數注入。
+# 下面的 /stage 是 scripts/package.sh 掛進容器的 build/<product>/stage;
+# packaging/ 的路徑相對於 repo 根目錄,type: symlink 的 src 則是連結目標。
 name: openresty
 arch: ${PKG_ARCH}
 platform: linux
@@ -30,7 +32,7 @@ overrides:
       - perl
       - "libcrypt.so.1()(64bit)"
 contents:
-  - src: build/openresty/stage/usr/local/openresty
+  - src: /stage/usr/local/openresty
     dst: /usr/local/openresty
     type: tree
   # nginx.conf 與 conf.d 不放在上面的 tree 裡,才能標成 config|noreplace,
