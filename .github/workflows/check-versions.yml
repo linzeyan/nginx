@@ -13,7 +13,7 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: check
         run: make bump-versions
       # 用 GITHUB_TOKEN 推的 commit 不會觸發 push workflow(GitHub 的

@@ -31,11 +31,11 @@ jobs:
             arch: arm64
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # 在 almalinux:8 容器內編譯、以 nfpm 打包,最後在乾淨的發行版容器
       # 內做安裝煙霧測試 —— 與本地 make 完全同一條路徑
       - run: make nginx-mainline
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: nginx-mainline-${{ matrix.arch }}
           path: dist/*
@@ -45,8 +45,8 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
